@@ -1,5 +1,7 @@
 const APIFeatures = require('../utils/apiFeatures');
 const Tour = require('./../models/tourModel');
+const catchAsync = require("./../utils/catchAsync")
+const AppError = require("./../utils/appError")
 
 exports.aliasTopTours = async (req, res, next) => {
   req.query.limit = '5';
@@ -9,8 +11,7 @@ exports.aliasTopTours = async (req, res, next) => {
 
 
 
-exports.getAllTours = async (req, res) => {
-  try {
+exports.getAllTours = catchAsync(async (req, res,next) => {
     const features = new APIFeatures(Tour, req.query)
       .filter()
       .sort()
@@ -24,79 +25,61 @@ exports.getAllTours = async (req, res) => {
       results: tours.length,
       data: { tours },
     });
-  } catch (error) {
-    res.status(404).json({
-      status: 'fail',
-      message: error,
-    });
-  }
-};
+})
 
-exports.getTour = async (req, res) => {
-  try {
+exports.getTour = catchAsync(async (req, res,next) => {
     const tour = await Tour.findById({ _id: req.params.id });
+    console.log(tour,"getTOurk andar h")
+    if(!tour){
+     return  next(new AppError("No tour find with that id",404))
+    }
+
     res.status(200).json({
       status: 'success',
       results: tour,
     });
-  } catch (error) {
-    res.status(400).json({
-      status: 'failed',
-      message: error,
-    });
-  }
-};
+})
 
-exports.createTour = async (req, res) => {
-  try {
+exports.createTour = catchAsync(async (req, res,next) => {
     let newTour = await Tour.create(req.body);
     res.status(201).json({
       status: 'success',
       data: { tour: newTour },
-    });
-  } catch (error) {
-    res.status(400).json({
-      status: 'failed',
-      message: error,
-    });
-  }
-};
+    })
+})
 
-exports.updateTour = async (req, res) => {
-  try {
+
+//to remove try Catch we implemented catchAsync function this fn will reuturn new anonyses fn and call it.
+exports.updateTour = catchAsync(async (req, res,next) => {
     const tour = await Tour.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       //this is very useful bcs while updating also it will follow all rules of creating.
       runValidators:true
     });
-    res.status(200).json({ status: 'Success', data: { tour } });
-  } catch (error) {
-    res.status(400).json({
-      status: 'failed',
-      message: error,
-    });
-  }
-};
 
-exports.deleteTour = async (req, res) => {
-  try {
+    if(!tour){
+      return  next(new AppError("No tour find with that id",404))
+     }
+
+    res.status(200).json({ status: 'Success', data: { tour } });
+});
+
+exports.deleteTour = catchAsync(async (req, res,next) => {
+
+
     let deleted = await Tour.deleteOne({ _id: req.params.id });
+
+    if(!deleted){
+      return  next(new AppError("No tour find with that id",404))
+     }
 
     res.status(204).json({
       status: 'success',
       data: deleted,
     });
-  } catch (error) {
-    console.log(error);
-    res.status(400).json({
-      status: 'failed',
-      message: error,
-    });
-  }
-};
+})
 
-exports.getTourStats = async (req,res)=>{
-   try {
+exports.getTourStats = catchAsync(async (req,res,next)=>{
     const stats =await Tour.aggregate([
       {
         $match:{ratingsAverage: {$gte: 4.5}}
@@ -125,17 +108,11 @@ exports.getTourStats = async (req,res)=>{
         // }
     ])
     res.status(200).json({ status: 'Success', stats  });
-   } catch (error) {
-    res.status(400).json({
-      status: 'failed',
-      message: error,
-    });
-   }
-}
+   
+})
 
 
-exports.getMonthlyPlan=async (req,res)=>{
-  try {
+exports.getMonthlyPlan=catchAsync(async (req,res,next)=>{
     const year = req.params.year * 1;
 
     //unwind will split the array in single single object for every start date
@@ -177,10 +154,4 @@ exports.getMonthlyPlan=async (req,res)=>{
     ])
 
     res.status(200).json({ status: 'Success', plan  });
-  } catch (error) {
-    res.status(400).json({
-      status: 'failed',
-      message: error,
-    });
-  }   
-}
+})
