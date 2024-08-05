@@ -66,6 +66,8 @@ exports.updateTour = async (req, res) => {
   try {
     const tour = await Tour.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
+      //this is very useful bcs while updating also it will follow all rules of creating.
+      runValidators:true
     });
     res.status(200).json({ status: 'Success', data: { tour } });
   } catch (error) {
@@ -129,4 +131,56 @@ exports.getTourStats = async (req,res)=>{
       message: error,
     });
    }
+}
+
+
+exports.getMonthlyPlan=async (req,res)=>{
+  try {
+    const year = req.params.year * 1;
+
+    //unwind will split the array in single single object for every start date
+    const plan = await Tour.aggregate([
+      {
+        $unwind: '$startDates'
+      },
+      {
+        $match: {
+          startDates: {
+            $gte: new Date(`${year}-01-01`),
+            $lte : new Date(`${year}-12-31`)
+          }
+        }
+      },
+      {
+        $group : {
+          _id: {$month: '$startDates'},
+          numToursStarts: {$sum:1},
+          //we will have array having names of all the tours using below query
+          tours: {$push: '$name'}
+        }
+      },
+      {
+        //simply to add new field in the data
+        $addFields: {
+          month: '$_id'
+        }
+      }, {
+        //if i add _id as 0 will not show it in the document whereas 1 will show that
+        $project: {
+          _id: 0 //1
+        }
+      },{
+        $sort: { numToursStarts: -1}
+      }, {
+        $limit: 12
+      }
+    ])
+
+    res.status(200).json({ status: 'Success', plan  });
+  } catch (error) {
+    res.status(400).json({
+      status: 'failed',
+      message: error,
+    });
+  }   
 }
